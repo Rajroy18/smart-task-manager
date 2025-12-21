@@ -1,4 +1,4 @@
-function classifyTask(title = "", description = "") {
+export function classifyTask(title = "", description = "") {
   const text = `${title} ${description}`.toLowerCase();
 
   // CATEGORY
@@ -35,5 +35,3 @@ function classifyTask(title = "", description = "") {
     suggested_actions
   };
 }
-
-module.exports = { classifyTask };

@@ -2,6 +2,8 @@ const express = require("express");
 const { v4: uuidv4 } = require("uuid");
 const pool = require("../db/db");
 const { classifyTask } = require("../services/classification.service");
+const { logTaskHistory } = require("../services/taskHistory.service");
+
 
 const router = express.Router();
 
@@ -19,16 +21,30 @@ router.post("/", async (req, res) => {
       });
     }
 
-    const text = `${title} ${description}`;
-    const { category, priority } = classifyTask(text);
+    const {
+      category,
+      priority,
+      extracted_entities,
+      suggested_actions,
+    } = classifyTask(title, description);
+
     const id = uuidv4();
 
     const result = await pool.query(
       `INSERT INTO tasks
-      (id, title, description, category, priority, status, created_at, updated_at)
-      VALUES ($1,$2,$3,$4,$5,$6,now(),now())
+      (id, title, description, category, priority, status, extracted_entities, suggested_actions, created_at, updated_at)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,now(),now())
       RETURNING *`,
-      [id, title, description, category, priority, status || "pending"]
+      [
+        id,
+        title,
+        description,
+        category,
+        priority,
+        status || "pending",
+        extracted_entities,
+        suggested_actions,
+      ]
     );
 
     res.status(201).json(result.rows[0]);
@@ -64,15 +80,13 @@ router.get("/", async (req, res) => {
 
     const offset = (page - 1) * limit;
 
-    // Total count
     const countResult = await pool.query(
       `SELECT COUNT(*) FROM tasks ${whereClause}`,
       values
     );
 
-    const total = parseInt(countResult.rows[0].count);
+    const total = Number(countResult.rows[0].count);
 
-    // Paginated results
     const result = await pool.query(
       `SELECT * FROM tasks
        ${whereClause}
@@ -96,7 +110,6 @@ router.get("/", async (req, res) => {
 
 /**
  * GET /api/tasks/:id
- * Get single task
  */
 router.get("/:id", async (req, res) => {
   try {
@@ -118,7 +131,6 @@ router.get("/:id", async (req, res) => {
 
 /**
  * PATCH /api/tasks/:id
- * Update task
  */
 router.patch("/:id", async (req, res) => {
   try {
@@ -133,17 +145,16 @@ router.patch("/:id", async (req, res) => {
       return res.status(404).json({ error: "Task not found" });
     }
 
-    let category = existing.rows[0].category;
-    let priority = existing.rows[0].priority;
+    const updatedTitle = title || existing.rows[0].title;
+    const updatedDescription =
+      description || existing.rows[0].description;
 
-    if (title || description) {
-      const text = `${title || existing.rows[0].title} ${
-        description || existing.rows[0].description
-      }`;
-      const classified = classifyTask(text);
-      category = classified.category;
-      priority = classified.priority;
-    }
+    const {
+      category,
+      priority,
+      extracted_entities,
+      suggested_actions,
+    } = classifyTask(updatedTitle, updatedDescription);
 
     const result = await pool.query(
       `UPDATE tasks
@@ -152,15 +163,19 @@ router.patch("/:id", async (req, res) => {
            category=$3,
            priority=$4,
            status=$5,
+           extracted_entities=$6,
+           suggested_actions=$7,
            updated_at=now()
-       WHERE id=$6
+       WHERE id=$8
        RETURNING *`,
       [
-        title || existing.rows[0].title,
-        description || existing.rows[0].description,
+        updatedTitle,
+        updatedDescription,
         category,
         priority,
         status || existing.rows[0].status,
+        extracted_entities,
+        suggested_actions,
         req.params.id,
       ]
     );

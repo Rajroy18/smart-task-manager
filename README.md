@@ -1,52 +1,73 @@
 # Smart Task Manager API
 
-A production-ready **Task Management REST API** built with **Node.js, Express, and PostgreSQL (Supabase)**.  
-The API supports full CRUD operations, filtering, pagination, and is deployed live on **Render**.
+A production-ready **Task Management REST API** built with **Node.js, Express, and PostgreSQL (Supabase)**.
+The application includes smart task classification, audit logging, pagination, filtering, and unit tests, and is deployed live on **Render**.
 
 ---
 
 ## 🚀 Live Deployment
 
-**Base URL:**  
-https://smart-task-manager-wqa7.onrender.com
+**Base URL:**
+[https://smart-task-manager-wqa7.onrender.com](https://smart-task-manager-wqa7.onrender.com)
 
 ---
 
 ## 🛠 Tech Stack
 
-- **Backend:** Node.js, Express.js
-- **Database:** PostgreSQL (Supabase)
-- **ORM/Driver:** pg
-- **Deployment:** Render
-- **API Testing:** Thunder Client (VS Code extension)
+* **Backend:** Node.js, Express.js
+* **Database:** PostgreSQL (Supabase)
+* **Database Driver:** pg
+* **Testing:** Jest
+* **Deployment:** Render
+* **API Testing:** Thunder Client (VS Code)
 
 ---
 
-## 📦 Features
+## ✨ Features
 
-- Create, read, update, and delete tasks
-- Pagination support (`page`, `limit`)
-- Filtering by task status
-- Proper HTTP status codes & error handling
-- Environment-based configuration
-- Deployed and publicly accessible API
+* Full CRUD operations for tasks
+* Smart auto-classification (category & priority)
+* Entity extraction and suggested actions
+* Task history (audit log)
+* Pagination and filtering
+* Robust error handling
+* Environment-based configuration
+* Unit tests for core logic
 
 ---
 
 ## 🗂 Database Schema
 
+### Tasks Table
+
 ```sql
 CREATE TABLE tasks (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  title TEXT NOT NULL,
-  description TEXT,
-  category TEXT DEFAULT 'general',
-  priority TEXT DEFAULT 'low',
-  status TEXT DEFAULT 'pending',
-  assigned_to TEXT,
-  due_date TIMESTAMP,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  id uuid PRIMARY KEY,
+  title text NOT NULL,
+  description text,
+  category text,
+  priority text,
+  status text,
+  assigned_to text,
+  due_date timestamp,
+  extracted_entities jsonb,
+  suggested_actions jsonb,
+  created_at timestamp DEFAULT now(),
+  updated_at timestamp DEFAULT now()
+);
+```
+
+### Task History Table
+
+```sql
+CREATE TABLE task_history (
+  id uuid PRIMARY KEY,
+  task_id uuid REFERENCES tasks(id),
+  action text,
+  old_value jsonb,
+  new_value jsonb,
+  changed_by text,
+  changed_at timestamp DEFAULT now()
 );
 ```
 
@@ -54,142 +75,109 @@ CREATE TABLE tasks (
 
 ## 🔗 API Endpoints
 
-### 1️⃣ Get All Tasks (with pagination)
+### Get All Tasks (Pagination & Filters)
 
 ```
-GET /api/tasks?page=1&limit=5
+GET /api/tasks?page=1&limit=5&status=pending&priority=high
 ```
 
 **Response:**
+
 ```json
 {
   "total": 2,
   "page": 1,
   "pages": 1,
-  "data": [
-    {
-      "id": "uuid",
-      "title": "Sample Task",
-      "status": "pending"
-    }
-  ]
+  "data": []
 }
 ```
 
 ---
 
-### 2️⃣ Create a Task
+### Create Task
 
 ```
 POST /api/tasks
 ```
 
-**Body (JSON):**
+**Body:**
+
 ```json
 {
-  "title": "New Task",
-  "description": "Task description",
-  "category": "general",
-  "priority": "low"
+  "title": "Urgent bug fix",
+  "description": "Fix server error today"
 }
 ```
 
-**Status:** `201 Created`
-
 ---
 
-### 3️⃣ Get Task by ID
+### Get Task by ID
 
 ```
 GET /api/tasks/:id
 ```
 
-**Status:** `200 OK` | `404 Not Found`
-
 ---
 
-### 4️⃣ Update Task (Partial Update)
+### Update Task
 
 ```
 PATCH /api/tasks/:id
 ```
 
-**Body (JSON):**
+**Body:**
+
 ```json
 {
-  "status": "completed",
-  "priority": "high"
+  "status": "completed"
 }
 ```
 
-**Status:** `200 OK`
-
 ---
 
-### 5️⃣ Delete Task
+### Delete Task
 
 ```
 DELETE /api/tasks/:id
 ```
 
-**Response:**
-```json
-{
-  "message": "Task deleted successfully"
-}
-```
+---
+
+## 🧠 Smart Classification Logic
+
+The API automatically determines:
+
+* **Category** (technical, meeting, general)
+* **Priority** (low, medium, high)
+* **Extracted entities** (client, server, email)
+* **Suggested actions** (notifications, assignment)
+
+This logic is implemented using keyword-based analysis.
 
 ---
 
-## ❌ Error Handling Examples
+## 🧪 Testing
 
-### Missing required field
+Unit tests are implemented using **Jest** to validate classification logic.
 
-```json
-{
-  "error": "Title is required"
-}
+Run tests:
+
+```bash
+npm test
 ```
-
-**Status:** `400 Bad Request`
-
----
-
-### Task not found
-
-```json
-{
-  "error": "Task not found"
-}
-```
-
-**Status:** `404 Not Found`
-
----
-
-## 🧪 API Testing
-
-All endpoints were tested using **Thunder Client** in VS Code.
-
-Tested scenarios include:
-- Create task
-- Fetch tasks with pagination
-- Update task status
-- Delete task
-- Error cases (invalid ID, missing fields)
 
 ---
 
 ## ⚙️ Environment Variables
 
-Create a `.env` file locally:
+Create a `.env` file:
 
 ```env
 PORT=5000
 DATABASE_URL=postgresql://<username>:<password>@<host>:<port>/postgres
 ```
 
-⚠️ `.env` is excluded from GitHub for security reasons.
+⚠️ Do not commit `.env` to version control.
 
 ---
 
@@ -201,6 +189,7 @@ npm run dev
 ```
 
 Server will start at:
+
 ```
 http://localhost:5000
 ```
@@ -209,22 +198,15 @@ http://localhost:5000
 
 ## 📌 Notes
 
-- Supabase Session Pooler is used for production deployment
-- SSL is enabled for database connections
-- Render automatically assigns the runtime port
+* Supabase session pooler is used for database connections
+* SSL is enabled for production
+* Render dynamically assigns the runtime port
 
 ---
 
-## 👤 Author
+## ✅ Project Status
 
-**Shubhra Samanta**  
-Backend Developer
-
----
-
-## ✅ Status
-
-✔ Backend complete  
-✔ Deployed & tested  
-✔ Submission-ready
-
+✔ Backend complete
+✔ Smart logic implemented
+✔ Unit tested
+✔ Deployed and production-ready
