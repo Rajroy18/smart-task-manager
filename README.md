@@ -5,14 +5,14 @@ The application includes smart task classification, audit logging, pagination, f
 
 ---
 
-## 🚀 Live Deployment
+## Live Deployment
 
 **Base URL:**
 [https://smart-task-manager-wqa7.onrender.com](https://smart-task-manager-wqa7.onrender.com)
 
 ---
 
-## 🛠 Tech Stack
+## Tech Stack
 
 * **Backend:** Node.js, Express.js
 * **Database:** PostgreSQL (Supabase)
@@ -23,7 +23,7 @@ The application includes smart task classification, audit logging, pagination, f
 
 ---
 
-## ✨ Features
+## Features
 
 * Full CRUD operations for tasks
 * Smart auto-classification (category & priority)
@@ -36,7 +36,7 @@ The application includes smart task classification, audit logging, pagination, f
 
 ---
 
-## 🗂 Database Schema
+## Database Schema
 
 ### Tasks Table
 
@@ -73,7 +73,7 @@ CREATE TABLE task_history (
 
 ---
 
-## 🔗 API Endpoints
+## API Endpoints
 
 ### Get All Tasks (Pagination & Filters)
 
@@ -143,7 +143,7 @@ DELETE /api/tasks/:id
 
 ---
 
-## 🧠 Smart Classification Logic
+## Smart Classification Logic
 
 The API automatically determines:
 
@@ -156,7 +156,7 @@ This logic is implemented using keyword-based analysis.
 
 ---
 
-## 🧪 Testing
+## Testing
 
 Unit tests are implemented using **Jest** to validate classification logic.
 
@@ -168,7 +168,7 @@ npm test
 
 ---
 
-## ⚙️ Environment Variables
+## Environment Variables
 
 Create a `.env` file:
 
@@ -181,7 +181,7 @@ DATABASE_URL=postgresql://<username>:<password>@<host>:<port>/postgres
 
 ---
 
-## ▶️ Run Locally
+## Run Locally
 
 ```bash
 npm install
