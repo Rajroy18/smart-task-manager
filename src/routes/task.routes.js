@@ -4,7 +4,6 @@ const pool = require("../db/db");
 const { classifyTask } = require("../services/classification.service");
 const { logTaskHistory } = require("../services/taskHistory.service");
 
-
 const router = express.Router();
 
 /**
@@ -24,16 +23,26 @@ router.post("/", async (req, res) => {
     const {
       category,
       priority,
-      extracted_entities,
-      suggested_actions,
+      extracted_entities = {},
+      suggested_actions = {},
     } = classifyTask(title, description);
 
     const id = uuidv4();
 
     const result = await pool.query(
-      `INSERT INTO tasks
-      (id, title, description, category, priority, status, extracted_entities, suggested_actions, created_at, updated_at)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,now(),now())
+      `INSERT INTO tasks (
+        id,
+        title,
+        description,
+        category,
+        priority,
+        status,
+        extracted_entities,
+        suggested_actions,
+        created_at,
+        updated_at
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,now(),now())
       RETURNING *`,
       [
         id,
@@ -42,14 +51,16 @@ router.post("/", async (req, res) => {
         category,
         priority,
         status || "pending",
-        extracted_entities,
-        suggested_actions,
+        JSON.stringify(extracted_entities),
+        JSON.stringify(suggested_actions),
       ]
     );
 
+    await logTaskHistory(id, "created", null, result.rows[0]);
+
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error(err);
+    console.error("Create task error:", err);
     res.status(500).json({ error: "Failed to create task" });
   }
 });
@@ -78,7 +89,7 @@ router.get("/", async (req, res) => {
     const whereClause =
       filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
 
-    const offset = (page - 1) * limit;
+    const offset = (Number(page) - 1) * Number(limit);
 
     const countResult = await pool.query(
       `SELECT COUNT(*) FROM tasks ${whereClause}`,
@@ -88,7 +99,8 @@ router.get("/", async (req, res) => {
     const total = Number(countResult.rows[0].count);
 
     const result = await pool.query(
-      `SELECT * FROM tasks
+      `SELECT *
+       FROM tasks
        ${whereClause}
        ORDER BY created_at DESC
        LIMIT $${values.length + 1}
@@ -103,13 +115,14 @@ router.get("/", async (req, res) => {
       data: result.rows,
     });
   } catch (err) {
-    console.error(err);
+    console.error("Fetch tasks error:", err);
     res.status(500).json({ error: "Failed to fetch tasks" });
   }
 });
 
 /**
  * GET /api/tasks/:id
+ * Get single task
  */
 router.get("/:id", async (req, res) => {
   try {
@@ -124,13 +137,14 @@ router.get("/:id", async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (err) {
-    console.error(err);
+    console.error("Get task error:", err);
     res.status(500).json({ error: "Failed to fetch task" });
   }
 });
 
 /**
  * PATCH /api/tasks/:id
+ * Update task
  */
 router.patch("/:id", async (req, res) => {
   try {
@@ -145,15 +159,16 @@ router.patch("/:id", async (req, res) => {
       return res.status(404).json({ error: "Task not found" });
     }
 
-    const updatedTitle = title || existing.rows[0].title;
-    const updatedDescription =
-      description || existing.rows[0].description;
+    const oldTask = existing.rows[0];
+
+    const updatedTitle = title || oldTask.title;
+    const updatedDescription = description || oldTask.description;
 
     const {
       category,
       priority,
-      extracted_entities,
-      suggested_actions,
+      extracted_entities = {},
+      suggested_actions = {},
     } = classifyTask(updatedTitle, updatedDescription);
 
     const result = await pool.query(
@@ -163,8 +178,8 @@ router.patch("/:id", async (req, res) => {
            category=$3,
            priority=$4,
            status=$5,
-           extracted_entities=$6,
-           suggested_actions=$7,
+           extracted_entities=$6::jsonb,
+           suggested_actions=$7::jsonb,
            updated_at=now()
        WHERE id=$8
        RETURNING *`,
@@ -173,22 +188,25 @@ router.patch("/:id", async (req, res) => {
         updatedDescription,
         category,
         priority,
-        status || existing.rows[0].status,
-        extracted_entities,
-        suggested_actions,
+        status || oldTask.status,
+        JSON.stringify(extracted_entities),
+        JSON.stringify(suggested_actions),
         req.params.id,
       ]
     );
 
+    await logTaskHistory(req.params.id, "updated", oldTask, result.rows[0]);
+
     res.json(result.rows[0]);
   } catch (err) {
-    console.error(err);
+    console.error("Update task error:", err);
     res.status(500).json({ error: "Failed to update task" });
   }
 });
 
 /**
  * DELETE /api/tasks/:id
+ * Delete task
  */
 router.delete("/:id", async (req, res) => {
   try {
@@ -201,9 +219,11 @@ router.delete("/:id", async (req, res) => {
       return res.status(404).json({ error: "Task not found" });
     }
 
+    await logTaskHistory(req.params.id, "deleted", result.rows[0], null);
+
     res.json({ message: "Task deleted" });
   } catch (err) {
-    console.error(err);
+    console.error("Delete task error:", err);
     res.status(500).json({ error: "Failed to delete task" });
   }
 });
