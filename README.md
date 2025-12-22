@@ -210,3 +210,7 @@ http://localhost:5000
 ✔ Smart logic implemented
 ✔ Unit tested
 ✔ Deployed and production-ready
+
+---
+
+Developed by **Kireeti Roy**
