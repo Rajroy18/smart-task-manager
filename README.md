@@ -300,3 +300,5 @@ flutter run
 * SSL enabled for database connections
 * Pagination and filtering handled server-side
 * Smart task classification uses keyword-based logic
+
+`Developed by Kireeti Roy`
