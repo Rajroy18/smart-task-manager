@@ -270,7 +270,7 @@ flutter run
 
 ## Screenshots
 
-Screenshots of the Flutter dashboard and API responses are included as part of the submission.
+![Flutter Web Interface](assets\image1.png)
 
 ---
 
