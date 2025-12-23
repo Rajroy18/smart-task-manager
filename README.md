@@ -270,7 +270,7 @@ flutter run
 
 ## Screenshots
 
-![Flutter Web Interface](assets\image1.png)
+![Flutter Web Interface](assets/image1.png)
 
 ---
 
