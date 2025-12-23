@@ -17,9 +17,9 @@ class Task {
     return Task(
       id: json['id'],
       title: json['title'],
-      description: json['description'],
+      description: json['description'] ?? '',
       status: json['status'],
-      priority: json['priority'], // MUST be lowercase
+      priority: json['priority'],
     );
   }
 }

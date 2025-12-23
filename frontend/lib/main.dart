@@ -13,7 +13,8 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
+      title: 'Smart Task Manager',
+      theme: appTheme,
       home: const DashboardScreen(),
     );
   }

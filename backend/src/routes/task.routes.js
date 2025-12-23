@@ -8,16 +8,13 @@ const router = express.Router();
 
 /**
  * POST /api/tasks
- * Create task
  */
 router.post("/", async (req, res) => {
   try {
     const { title, description, status } = req.body;
 
     if (!title || !description) {
-      return res.status(400).json({
-        error: "Title and description are required",
-      });
+      return res.status(400).json({ error: "Title and description are required" });
     }
 
     const {
@@ -31,16 +28,8 @@ router.post("/", async (req, res) => {
 
     const result = await pool.query(
       `INSERT INTO tasks (
-        id,
-        title,
-        description,
-        category,
-        priority,
-        status,
-        extracted_entities,
-        suggested_actions,
-        created_at,
-        updated_at
+        id, title, description, category, priority, status,
+        extracted_entities, suggested_actions, created_at, updated_at
       )
       VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,now(),now())
       RETURNING *`,
@@ -85,21 +74,16 @@ router.get("/", async (req, res) => {
       filters.push(`priority = $${values.length}`);
     }
 
-    const whereClause =
-      filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
-
-    const offset = (Number(page) - 1) * Number(limit);
+    const whereClause = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
+    const offset = (page - 1) * limit;
 
     const countResult = await pool.query(
       `SELECT COUNT(*) FROM tasks ${whereClause}`,
       values
     );
 
-    const total = Number(countResult.rows[0].count);
-
     const result = await pool.query(
-      `SELECT *
-       FROM tasks
+      `SELECT * FROM tasks
        ${whereClause}
        ORDER BY created_at DESC
        LIMIT $${values.length + 1}
@@ -108,9 +92,9 @@ router.get("/", async (req, res) => {
     );
 
     res.json({
-      total,
+      total: Number(countResult.rows[0].count),
       page: Number(page),
-      pages: Math.ceil(total / limit),
+      pages: Math.ceil(countResult.rows[0].count / limit),
       data: result.rows,
     });
   } catch (err) {
@@ -120,29 +104,8 @@ router.get("/", async (req, res) => {
 });
 
 /**
- * GET /api/tasks/:id
- */
-router.get("/:id", async (req, res) => {
-  try {
-    const result = await pool.query(
-      `SELECT * FROM tasks WHERE id=$1`,
-      [req.params.id]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: "Task not found" });
-    }
-
-    res.json(result.rows[0]);
-  } catch (err) {
-    console.error("Get task error:", err);
-    res.status(500).json({ error: "Failed to fetch task" });
-  }
-});
-
-/**
  * PATCH /api/tasks/:id
- * ✅ FIXED: priority + status updates now work
+ * Priority + Status update works
  */
 router.patch("/:id", async (req, res) => {
   try {
@@ -153,21 +116,19 @@ router.patch("/:id", async (req, res) => {
       [req.params.id]
     );
 
-    if (existing.rows.length === 0) {
+    if (!existing.rows.length) {
       return res.status(404).json({ error: "Task not found" });
     }
 
     const oldTask = existing.rows[0];
 
-    const updatedTitle = title ?? oldTask.title;
-    const updatedDescription = description ?? oldTask.description;
-
-    let finalCategory = oldTask.category;
+    let updatedTitle = title ?? oldTask.title;
+    let updatedDescription = description ?? oldTask.description;
     let finalPriority = priority ?? oldTask.priority;
+    let finalCategory = oldTask.category;
     let extracted_entities = oldTask.extracted_entities ?? {};
     let suggested_actions = oldTask.suggested_actions ?? {};
 
-    // Reclassify ONLY if content changed
     if (title || description) {
       const classified = classifyTask(updatedTitle, updatedDescription);
       finalCategory = classified.category;
@@ -211,21 +172,26 @@ router.patch("/:id", async (req, res) => {
 
 /**
  * DELETE /api/tasks/:id
+ * FIXED: delete history first
  */
 router.delete("/:id", async (req, res) => {
   try {
+    const taskId = req.params.id;
+
+    // 1️⃣ Delete history FIRST
+    await pool.query(`DELETE FROM task_history WHERE task_id=$1`, [taskId]);
+
+    // 2️⃣ Then delete task
     const result = await pool.query(
       `DELETE FROM tasks WHERE id=$1 RETURNING *`,
-      [req.params.id]
+      [taskId]
     );
 
-    if (result.rows.length === 0) {
+    if (!result.rows.length) {
       return res.status(404).json({ error: "Task not found" });
     }
 
-    await logTaskHistory(req.params.id, "deleted", result.rows[0], null);
-
-    res.json({ message: "Task deleted" });
+    res.json({ message: "Task deleted successfully" });
   } catch (err) {
     console.error("Delete task error:", err);
     res.status(500).json({ error: "Failed to delete task" });

@@ -24,19 +24,43 @@ class _TaskCardState extends State<TaskCard> {
   @override
   void initState() {
     super.initState();
-    status = widget.task.status.toLowerCase();
-    priority = widget.task.priority.toLowerCase();
+    status = widget.task.status;
+    priority = widget.task.priority;
   }
 
   Color priorityColor(String p) {
     switch (p) {
       case 'high':
-        return Colors.redAccent;
+        return Colors.red;
       case 'medium':
-        return Colors.orangeAccent;
+        return Colors.orange;
       default:
         return Colors.green;
     }
+  }
+
+  Widget menuChip({
+    required String value,
+    required List<String> options,
+    required Color color,
+    required Function(String) onSelected,
+  }) {
+    return PopupMenuButton<String>(
+      onSelected: onSelected,
+      itemBuilder: (_) => options
+          .map(
+            (o) => PopupMenuItem(
+              value: o,
+              child: Text(o.toUpperCase()),
+            ),
+          )
+          .toList(),
+      child: Chip(
+        label: Text(value.toUpperCase(),
+            style: const TextStyle(color: Colors.white)),
+        backgroundColor: color,
+      ),
+    );
   }
 
   @override
@@ -55,23 +79,18 @@ class _TaskCardState extends State<TaskCard> {
         widget.onRefresh();
       },
       child: Card(
-        elevation: 3,
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
-            /// TITLE + DELETE
             Row(
               children: [
                 Expanded(
                   child: Text(
                     widget.task.title,
                     style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                    ),
+                        fontSize: 17, fontWeight: FontWeight.bold),
                   ),
                 ),
                 IconButton(
@@ -84,73 +103,40 @@ class _TaskCardState extends State<TaskCard> {
               ],
             ),
 
-            Text(
-              widget.task.description,
-              style: TextStyle(color: Colors.grey[700]),
-            ),
+            Text(widget.task.description,
+                style: TextStyle(color: Colors.grey[700])),
 
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
 
-            /// ACTION BAR
             Row(
               children: [
 
-                /// STATUS
-                DropdownButton<String>(
+                menuChip(
                   value: status,
-                  underline: const SizedBox(),
-                  items: ['pending', 'completed']
-                      .map((s) => DropdownMenuItem(
-                            value: s,
-                            child: Text(s.toUpperCase()),
-                          ))
-                      .toList(),
-                  onChanged: (v) async {
-                    if (v == null || v == status) return;
+                  options: ['pending', 'completed'],
+                  color: status == 'completed'
+                      ? Colors.green
+                      : Colors.grey,
+                  onSelected: (v) async {
                     setState(() => status = v);
                     await api.updateTask(widget.task.id, status: v);
                   },
                 ),
 
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
 
-                /// PRIORITY (THIS NOW WORKS)
-                DropdownButton<String>(
+                menuChip(
                   value: priority,
-                  underline: const SizedBox(),
-                  items: ['low', 'medium', 'high']
-                      .map((p) => DropdownMenuItem(
-                            value: p,
-                            child: Text(p.toUpperCase()),
-                          ))
-                      .toList(),
-                  onChanged: (v) async {
-                    if (v == null || v == priority) return;
+                  options: ['low', 'medium', 'high'],
+                  color: priorityColor(priority),
+                  onSelected: (v) async {
                     setState(() => priority = v);
                     await api.updateTask(widget.task.id, priority: v);
                   },
                 ),
 
-                const SizedBox(width: 12),
-
-                /// PRIORITY BADGE
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: priorityColor(priority),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Text(
-                    priority.toUpperCase(),
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 12),
-                  ),
-                ),
-
                 const Spacer(),
 
-                /// DETAILS
                 IconButton(
                   icon: const Icon(Icons.info_outline),
                   onPressed: () {
@@ -173,8 +159,8 @@ class _TaskCardState extends State<TaskCard> {
                             const SizedBox(height: 10),
                             Text(widget.task.description),
                             const SizedBox(height: 10),
-                            Text("Status: ${status.toUpperCase()}"),
-                            Text("Priority: ${priority.toUpperCase()}"),
+                            Text("Status: $status"),
+                            Text("Priority: $priority"),
                           ],
                         ),
                       ),

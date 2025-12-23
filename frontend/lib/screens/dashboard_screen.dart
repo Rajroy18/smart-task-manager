@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import '../models/task.dart';
 import '../services/api_service.dart';
 import '../widgets/task_card.dart';
 import '../widgets/add_task_dialog.dart';
-import '../models/task.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -11,72 +11,88 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen>
+    with SingleTickerProviderStateMixin {
   final api = ApiService();
-  String? filter;
+  late TabController tabController;
 
-  Future<List<Task>> loadTasks() => api.fetchTasks(status: filter);
+  List<Task> tasks = [];
+  bool loading = true;
+  String? status;
+
+  @override
+  void initState() {
+    super.initState();
+    tabController = TabController(length: 3, vsync: this);
+    tabController.addListener(onTabChange);
+    fetchTasks();
+  }
+
+  void onTabChange() {
+    if (!tabController.indexIsChanging) {
+      if (tabController.index == 0) status = null;
+      if (tabController.index == 1) status = "pending";
+      if (tabController.index == 2) status = "completed";
+      fetchTasks();
+    }
+  }
+
+  Future<void> fetchTasks() async {
+    setState(() => loading = true);
+    tasks = await api.fetchTasks(status: status);
+    setState(() => loading = false);
+  }
+
+  @override
+  void dispose() {
+    tabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Smart Task Manager")),
-      body: Column(
-        children: [
-          // FILTERS
-          Padding(
-            padding: const EdgeInsets.all(8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                filterButton("All", null),
-                filterButton("Pending", "pending"),
-                filterButton("Completed", "completed"),
-              ],
-            ),
-          ),
-
-          Expanded(
-            child: FutureBuilder<List<Task>>(
-              future: loadTasks(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                return ListView(
-                  children: snapshot.data!
-                      .map((task) => TaskCard(
-                            task: task,
-                            onRefresh: () => setState(() {}),
-                          ))
-                      .toList(),
-                );
-              },
-            ),
-          ),
-        ],
+      appBar: AppBar(
+        title: const Text("Smart Task Manager"),
+        bottom: TabBar(
+          controller: tabController,
+          tabs: const [
+            Tab(text: "All"),
+            Tab(text: "Pending"),
+            Tab(text: "Completed"),
+          ],
+        ),
       ),
 
-      floatingActionButton: FloatingActionButton(
-        child: const Icon(Icons.add),
-        onPressed: () {
-          showDialog(
+      // Pull to refresh
+      body: RefreshIndicator(
+        onRefresh: fetchTasks,
+        child: loading
+            ? const Center(child: CircularProgressIndicator())
+            : tasks.isEmpty
+                ? const Center(child: Text("No tasks found"))
+                : ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    itemCount: tasks.length,
+                    itemBuilder: (_, i) => TaskCard(
+                      task: tasks[i],
+                      onRefresh: fetchTasks,
+                    ),
+                  ),
+      ),
+
+      // ADD TASK BUTTON (RESTORED)
+      floatingActionButton: FloatingActionButton.extended(
+        icon: const Icon(Icons.add),
+        label: const Text("Add Task"),
+        onPressed: () async {
+          await showDialog(
             context: context,
-            builder: (_) =>
-                AddTaskDialog(onAdded: () => setState(() {})),
+            builder: (_) => AddTaskDialog(
+              onAdded: fetchTasks,
+            ),
           );
         },
-      ),
-    );
-  }
-
-  Widget filterButton(String text, String? value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: ChoiceChip(
-        label: Text(text),
-        selected: filter == value,
-        onSelected: (_) => setState(() => filter = value),
       ),
     );
   }
