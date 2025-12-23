@@ -4,10 +4,11 @@ class AppTheme {
   static ThemeData lightTheme = ThemeData(
     useMaterial3: true,
     colorSchemeSeed: Colors.indigo,
-    scaffoldBackgroundColor: Colors.grey[100],
-    appBarTheme: const AppBarTheme(
-      centerTitle: true,
-      elevation: 0,
+    scaffoldBackgroundColor: const Color(0xFFF6F6FB),
+
+    cardTheme: const CardThemeData(
+      elevation: 3,
+      margin: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
     ),
   );
 }

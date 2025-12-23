@@ -4,37 +4,71 @@ import '../models/task.dart';
 
 class ApiService {
   static const String baseUrl =
-      "https://smart-task-manager-wqa7.onrender.com/api";
+      "https://smart-task-manager-wqa7.onrender.com/api/tasks";
 
-  static Future<List<Task>> fetchTasks({String? status}) async {
-    final uri = Uri.parse("$baseUrl/tasks")
-        .replace(queryParameters: status != null ? {"status": status} : null);
+  /// FETCH TASKS
+  Future<List<Task>> fetchTasks({String? status}) async {
+    final uri = status == null
+        ? Uri.parse(baseUrl)
+        : Uri.parse("$baseUrl?status=$status");
 
-    final res = await http.get(uri);
+    final response = await http.get(uri);
 
-    if (res.statusCode == 200) {
-      final body = jsonDecode(res.body);
-      return (body['data'] as List)
-          .map((e) => Task.fromJson(e))
-          .toList();
-    } else {
-      throw Exception("Failed to load tasks");
+    if (response.statusCode != 200) {
+      throw Exception("Failed to fetch tasks");
     }
+
+    final data = json.decode(response.body);
+
+    return (data['data'] as List)
+        .map((task) => Task.fromJson(task))
+        .toList();
   }
 
-  static Future<void> createTask(
-      String title, String description) async {
-    await http.post(
-      Uri.parse("$baseUrl/tasks"),
+  /// ADD TASK
+  Future<void> addTask(String title, String description) async {
+    final res = await http.post(
+      Uri.parse(baseUrl),
       headers: {"Content-Type": "application/json"},
-      body: jsonEncode({
+      body: json.encode({
         "title": title,
         "description": description,
       }),
     );
+
+    if (res.statusCode != 201) {
+      throw Exception("Failed to add task");
+    }
   }
 
-  static Future<void> deleteTask(String id) async {
-    await http.delete(Uri.parse("$baseUrl/tasks/$id"));
+  /// UPDATE TASK (FIXED)
+  Future<void> updateTask(
+    String id, {
+    String? status,
+    String? priority,
+  }) async {
+    final body = <String, dynamic>{};
+
+    if (status != null) body['status'] = status;
+    if (priority != null) body['priority'] = priority;
+
+    final res = await http.patch(
+      Uri.parse("$baseUrl/$id"),
+      headers: {"Content-Type": "application/json"},
+      body: json.encode(body),
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception("Failed to update task");
+    }
+  }
+
+  /// DELETE TASK
+  Future<void> deleteTask(String id) async {
+    final res = await http.delete(Uri.parse("$baseUrl/$id"));
+
+    if (res.statusCode != 200) {
+      throw Exception("Failed to delete task");
+    }
   }
 }

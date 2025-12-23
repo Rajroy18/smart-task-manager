@@ -19,7 +19,7 @@ class Task {
       title: json['title'],
       description: json['description'],
       status: json['status'],
-      priority: json['priority'],
+      priority: json['priority'], // MUST be lowercase
     );
   }
 }

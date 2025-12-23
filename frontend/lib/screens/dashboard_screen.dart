@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../models/task.dart';
 import '../services/api_service.dart';
 import '../widgets/task_card.dart';
 import '../widgets/add_task_dialog.dart';
+import '../models/task.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -12,133 +12,71 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  String selectedStatus = "all";
-  late Future<List<Task>> tasksFuture;
+  final api = ApiService();
+  String? filter;
 
-  void loadTasks() {
-    tasksFuture = ApiService.fetchTasks(
-      status: selectedStatus == "all" ? null : selectedStatus,
-    );
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    loadTasks();
-  }
-
-  void deleteTask(String id) async {
-    await ApiService.deleteTask(id);
-    setState(loadTasks);
-  }
-
-  Widget statusTab(String label, String value) {
-    return ChoiceChip(
-      label: Text(label),
-      selected: selectedStatus == value,
-      onSelected: (_) {
-        setState(() {
-          selectedStatus = value;
-          loadTasks();
-        });
-      },
-    );
-  }
+  Future<List<Task>> loadTasks() => api.fetchTasks(status: filter);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Smart Task Manager")),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          showDialog(
-            context: context,
-            builder: (_) => AddTaskDialog(onAdded: () {
-              setState(loadTasks);
-            }),
-          );
-        },
-        child: const Icon(Icons.add),
-      ),
       body: Column(
         children: [
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              statusTab("All", "all"),
-              const SizedBox(width: 8),
-              statusTab("Pending", "pending"),
-              const SizedBox(width: 8),
-              statusTab("Completed", "completed"),
-            ],
+          // FILTERS
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                filterButton("All", null),
+                filterButton("Pending", "pending"),
+                filterButton("Completed", "completed"),
+              ],
+            ),
           ),
-          const SizedBox(height: 8),
+
           Expanded(
             child: FutureBuilder<List<Task>>(
-              future: tasksFuture,
+              future: loadTasks(),
               builder: (context, snapshot) {
-                if (snapshot.connectionState ==
-                    ConnectionState.waiting) {
-                  return const Center(
-                      child: CircularProgressIndicator());
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
                 }
-
-                if (snapshot.hasError) {
-                  return const Center(
-                      child: Text("Failed to load tasks"));
-                }
-
-                final tasks = snapshot.data!;
-                if (tasks.isEmpty) {
-                  return const Center(
-                      child: Text("No tasks found"));
-                }
-
-                return RefreshIndicator(
-                  onRefresh: () async {
-                    setState(loadTasks);
-                  },
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: tasks.length,
-                    itemBuilder: (_, i) => TaskCard(
-                      task: tasks[i],
-                      onDelete: () {
-                        showDialog(
-                          context: context,
-                          builder: (_) => AlertDialog(
-                            title: const Text("Delete Task"),
-                            content: const Text(
-                                "Are you sure you want to delete this task?"),
-                            actions: [
-                              TextButton(
-                                onPressed: () =>
-                                    Navigator.pop(context),
-                                child: const Text("Cancel"),
-                              ),
-                              TextButton(
-                                onPressed: () {
-                                  Navigator.pop(context);
-                                  deleteTask(tasks[i].id);
-                                },
-                                child: const Text(
-                                  "Delete",
-                                  style:
-                                      TextStyle(color: Colors.red),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
+                return ListView(
+                  children: snapshot.data!
+                      .map((task) => TaskCard(
+                            task: task,
+                            onRefresh: () => setState(() {}),
+                          ))
+                      .toList(),
                 );
               },
             ),
           ),
         ],
+      ),
+
+      floatingActionButton: FloatingActionButton(
+        child: const Icon(Icons.add),
+        onPressed: () {
+          showDialog(
+            context: context,
+            builder: (_) =>
+                AddTaskDialog(onAdded: () => setState(() {})),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget filterButton(String text, String? value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: ChoiceChip(
+        label: Text(text),
+        selected: filter == value,
+        onSelected: (_) => setState(() => filter = value),
       ),
     );
   }

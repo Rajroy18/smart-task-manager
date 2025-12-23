@@ -8,7 +8,7 @@ const router = express.Router();
 
 /**
  * POST /api/tasks
- * Create a task
+ * Create task
  */
 router.post("/", async (req, res) => {
   try {
@@ -67,7 +67,6 @@ router.post("/", async (req, res) => {
 
 /**
  * GET /api/tasks
- * Filters + Pagination
  */
 router.get("/", async (req, res) => {
   try {
@@ -122,7 +121,6 @@ router.get("/", async (req, res) => {
 
 /**
  * GET /api/tasks/:id
- * Get single task
  */
 router.get("/:id", async (req, res) => {
   try {
@@ -144,11 +142,11 @@ router.get("/:id", async (req, res) => {
 
 /**
  * PATCH /api/tasks/:id
- * Update task
+ * ✅ FIXED: priority + status updates now work
  */
 router.patch("/:id", async (req, res) => {
   try {
-    const { title, description, status } = req.body;
+    const { title, description, status, priority } = req.body;
 
     const existing = await pool.query(
       `SELECT * FROM tasks WHERE id=$1`,
@@ -161,15 +159,22 @@ router.patch("/:id", async (req, res) => {
 
     const oldTask = existing.rows[0];
 
-    const updatedTitle = title || oldTask.title;
-    const updatedDescription = description || oldTask.description;
+    const updatedTitle = title ?? oldTask.title;
+    const updatedDescription = description ?? oldTask.description;
 
-    const {
-      category,
-      priority,
-      extracted_entities = {},
-      suggested_actions = {},
-    } = classifyTask(updatedTitle, updatedDescription);
+    let finalCategory = oldTask.category;
+    let finalPriority = priority ?? oldTask.priority;
+    let extracted_entities = oldTask.extracted_entities ?? {};
+    let suggested_actions = oldTask.suggested_actions ?? {};
+
+    // Reclassify ONLY if content changed
+    if (title || description) {
+      const classified = classifyTask(updatedTitle, updatedDescription);
+      finalCategory = classified.category;
+      finalPriority = classified.priority;
+      extracted_entities = classified.extracted_entities || {};
+      suggested_actions = classified.suggested_actions || {};
+    }
 
     const result = await pool.query(
       `UPDATE tasks
@@ -186,9 +191,9 @@ router.patch("/:id", async (req, res) => {
       [
         updatedTitle,
         updatedDescription,
-        category,
-        priority,
-        status || oldTask.status,
+        finalCategory,
+        finalPriority,
+        status ?? oldTask.status,
         JSON.stringify(extracted_entities),
         JSON.stringify(suggested_actions),
         req.params.id,
@@ -206,7 +211,6 @@ router.patch("/:id", async (req, res) => {
 
 /**
  * DELETE /api/tasks/:id
- * Delete task
  */
 router.delete("/:id", async (req, res) => {
   try {
